@@ -1,5 +1,7 @@
 import numpy as np
+import pandas as pd
 from copy import deepcopy as copy
+import matplotlib.pyplot as plt
 from numpy.random import default_rng
 from multiprocessing import Pool
 from itertools import repeat
@@ -49,7 +51,7 @@ class Optimizer:
         self.n_base_models = n_base_models                                      #Int - Number of base models iterate for each parameter set
         
         #Evolution parameters
-        self.lgd_vars = lgd_vars                                                #Int - Variables to test during gradient descent
+        self.lgd_vars = lgd_vars                                                #Int - Number of variables to test during gradient descent
         self.n_matings = n_matings                                              #Int - How many parent model pairs to mate
         self.n_children = n_children                                            #Int - How many children to generate from each mating
         self.potential_matings = self.get_potential_matings(hof_size)           #List - List of tuples containing all possible HOF model pairs
@@ -117,7 +119,7 @@ class Optimizer:
             print(f"Epoch {self.epoch} complete.\n")
             self.epoch += 1
                 
-    def initialize_models(self):
+    def initialize_models(self): #CHANGEME - rename seed_models and add seed_model. Include passed rng_seed???
         seeds = self.rng.integers(1, 1000000, self.n_base_models)
         for seed in seeds:
             model = self.Model(params=None, **self.model_init_kwargs)
@@ -132,16 +134,18 @@ class Optimizer:
         with Pool(self.n_workers) as pool:
             self.model_scores = pool.map(self.run_model, self.models)
     
-    def run_model(self, model_params):
+    def run_model(self, model_params): ##CHANGEME - Include passed rng_seed???
         scores = np.zeros(self.n_base_models)
         for i,model in enumerate(self.base_models):
             model.params = model_params
             model.run(self.n_iterations, **self.model_run_kwargs)
-            global_loss,local_loss = model.loss(**self.model_loss_kwargs)
-            scores[i] = local_loss
+            scores[i] = model.loss(**self.model_loss_kwargs)
         return scores.mean()
     
     def score_models(self):
+        '''
+        Combine current model scores and HOF scores, sort list and retain only the top n models
+        '''
         scores = np.array(self.model_scores + self.hof_scores)
         models = np.array(self.models + self.hof)
 
@@ -169,8 +173,7 @@ class Optimizer:
                     model = copy(base_model)
                     model.params = upper_model
                     model.iterate(self.n_iterations, prog_bar=False)
-                    global_loss,local_loss = model.loss(show_output=False)
-                    upper_losses[i] = local_loss
+                    upper_losses[i] = model.loss(show_output=False)
                 upper_loss = upper_losses.mean()
             else: upper_loss = top_score
             
@@ -183,8 +186,7 @@ class Optimizer:
                     model = copy(base_model)
                     model.params = lower_model
                     model.iterate(self.n_iterations, prog_bar=False)
-                    global_loss,local_loss = model.loss(show_output=False)
-                    lower_losses[i] = local_loss
+                    lower_losses[i] = model.loss(show_output=False)
                 lower_loss = lower_losses.mean()
             else: lower_loss = top_score
             
@@ -228,7 +230,24 @@ class Optimizer:
         for i in range(len(parents)-1):
             matings += list(zip(repeat(parents.pop(0),len(parents)),parents))
         return matings
-            
+
+    def results(self):
+        fig,axis = plt.subplots()
+        for i,scores in enumerate(self.hof_history):
+            x = list(repeat((i+1)/2,len(scores)))
+            y = scores
+            plt.plot(x,y,'bo')
+        axis.set_ylabel('score')
+        axis.set_xlabel('epoch')
+        plt.show()
+
+        results = {}
+        for key,param in self.params.items():
+            if not param.static:
+                results[key] = [model[key] for model in self.hof]
+        df = pd.DataFrame(results)
+        return df
+
 class Parameter:
     '''
     Class for model parameters, used to constuct individual instances of parameters for model instances.
