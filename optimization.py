@@ -25,13 +25,13 @@ class Optimizer:
         n_base_models       : int - Number of unique starting conditions to test for every parameter set.
 
     Model kwargs:
-        model_init_kwargs   : dict - kwargs passed to Model.__init__()
-        model_seed_kwargs   : dict - kwargs passed to Model.seed()
-        model_run_kwargs    : dict - kwargs passed to Model.run()
-        model_loss_kwargs   : dict - kwargs passed to Model.loss()
+        model_init_kwargs   : dict - kwargs passed to Model.__init__(**model_init_kwargs)
+        model_seed_kwargs   : dict - kwargs passed to Model.seed(rng_seed, **model_seed_kwargs)
+        model_run_kwargs    : dict - kwargs passed to Model.run(n_iterations, **self.model_run_kwargs)
+        model_loss_kwargs   : dict - kwargs passed to Model.loss(**model_loss_kwargs)
 
     To be compatible with this optimizaer, a Model needs the following callable functions:
-        Model.__init__(params, **model_init_kwargs)
+        Model.__init__(params=None, **model_init_kwargs) #Params should be a passed dict, and take an original value of None
         Model.seed(rng_seed, **model_seed_kwargs)
         Model.run(n_iterations, **model_run_kwargs)
         Model.loss(**model_loss_kwargs)
@@ -172,8 +172,8 @@ class Optimizer:
                 for i,base_model in enumerate(self.base_models):
                     model = copy(base_model)
                     model.params = upper_model
-                    model.iterate(self.n_iterations, prog_bar=False)
-                    upper_losses[i] = model.loss(show_output=False)
+                    model.run(self.n_iterations)
+                    upper_losses[i] = model.loss(**self.model_loss_kwargs)
                 upper_loss = upper_losses.mean()
             else: upper_loss = top_score
             
@@ -185,8 +185,8 @@ class Optimizer:
                 for i,base_model in enumerate(self.base_models):
                     model = copy(base_model)
                     model.params = lower_model
-                    model.iterate(self.n_iterations, prog_bar=False)
-                    lower_losses[i] = model.loss(show_output=False)
+                    model.run(self.n_iterations)
+                    lower_losses[i] = model.loss(**self.model_loss_kwargs)
                 lower_loss = lower_losses.mean()
             else: lower_loss = top_score
             
