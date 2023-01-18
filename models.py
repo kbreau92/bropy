@@ -9,6 +9,7 @@ from numpy.random import default_rng
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import FancyArrow
 
+#Original 2D model used in 2022. Simple reaction complex, no diffusion.
 class BestagonModel_v1:
     def __init__(self, params=None, size=10, periodic=True, scale=1):
         #Set periodic boundary conditions
@@ -292,7 +293,7 @@ class BestagonModel_v1:
         
         return (global_loss,local_loss)
  
-
+#Work in progress model adding lateral membrane diffusion. Simple reaction complex.
 class BestagonModel_v2:
     def __init__(self, params=None, size=10, periodic=True, scale=1):
         #Set periodic boundary conditions
